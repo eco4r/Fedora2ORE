@@ -11,5 +11,3 @@ from a Fedora repository. Based on the  Fedora Digital Object Model, Fedora2ORE 
 explore properties and relationships about a digital object and map them to the OAI-ORE data Model.
 Fedora2ORE is available in two different distributions, a Java distribution and RESTFul Webservice 
 that simply encloses the Java-distribution and provides its functionality in a RESTFul manner.
-
-  
