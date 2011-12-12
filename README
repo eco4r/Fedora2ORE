@@ -1,11 +1,12 @@
 Project: Fedora2ORE
 ===================
-Subproject of:   eco4r - Exposing Compound Objects for Repositories
-Web Page:        http://www.eco4r.org
-version: 	 1.0
-Funded By:       DFG - German Research Foundation
-Co-operation:    HBZ NRW & University Library Bielefeld
-Developer:       Anouar Boulal
+Subproject of:        eco4r - Exposing Compound Objects for Repositories
+Web Page:             http://www.eco4r.org
+version: 	      1.0
+Funded By:            DFG - German Research Foundation
+Co-operation:         HBZ NRW & University Library Bielefeld
+Documentation site:   http://trac.eco4r.org/trac/eco4r/wiki/Fedora2ORE
+Developer:            Anouar Boulal
 
 -------------------- 
 
