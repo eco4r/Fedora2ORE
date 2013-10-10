@@ -42,80 +42,102 @@ import javax.xml.rpc.ServiceException;
 
 import org.apache.axis.types.NonNegativeInteger;
 import org.apache.log4j.Logger;
+import org.fcrepo.client.utility.AutoFinder;
+import org.fcrepo.server.access.FedoraAPIA;
+import org.fcrepo.server.types.gen.ComparisonOperator;
+import org.fcrepo.server.types.gen.Condition;
+import org.fcrepo.server.types.gen.FieldSearchQuery;
+import org.fcrepo.server.types.gen.FieldSearchResult;
+import org.fcrepo.server.types.gen.ListSession;
+import org.fcrepo.server.types.gen.ObjectFields;
 import org.hbz.eco4r.connection.FedoraConnector;
 
-import fedora.client.utility.AutoFinder;
-import fedora.server.access.FedoraAPIA;
-import fedora.server.types.gen.ComparisonOperator;
-import fedora.server.types.gen.Condition;
-import fedora.server.types.gen.FieldSearchQuery;
-import fedora.server.types.gen.FieldSearchResult;
-import fedora.server.types.gen.ListSession;
-import fedora.server.types.gen.ObjectFields;
-
-
 /**
- * <b>Class Name</b>: FedoraUtils</br>
- * <b>Class Definition</b>:
- * <p>Contains methods that raps specific Fedora-API methods as 'findObjects'.</p>
- *
+ * <b>Class Name</b>: FedoraUtils</br> <b>Class Definition</b>:
+ * <p>
+ * Contains methods that raps specific Fedora-API methods as 'findObjects'.
+ * </p>
+ * 
  * @author Anouar Boulal, boulal@hbz-nrw.de
- *
+ * 
  */
-public class FedoraUtils {
-	
+public class FedoraUtils
+{
+
 	private static Logger logger = Logger.getLogger(FedoraUtils.class);
 
 	private FedoraAPIA fedoraAPIA;
 	private FedoraConnector fedoraConnector;
-	
-	public FedoraUtils(FedoraConnector fedoraConnector) {
+
+	public FedoraUtils(FedoraConnector fedoraConnector)
+	{
 		this.setFedoraConnector(fedoraConnector);
-		try {
+		try
+		{
 			this.setFedoraAPIA(this.fedoraConnector.getFedoraClient().getAPIA());
-		} 
-		catch (ServiceException e) {
+		}
+		catch (ServiceException e)
+		{
 			e.printStackTrace();
-		} 
-		catch (IOException e) {
+		}
+		catch (IOException e)
+		{
 			e.printStackTrace();
 		}
 	}
-	
+
 	/**
-	 * Returns The {@link ObjectFields} object for a Fedora Digital Object.
-	 * The {@link ObjectFields} object contains specified fields of each 
-	 * object matching a given criteria 
+	 * Returns The {@link ObjectFields} object for a Fedora Digital Object. The
+	 * {@link ObjectFields} object contains specified fields of each object
+	 * matching a given criteria
 	 * 
-	 * @param objectPID The pid of the object you want to find
-	 * @param fedoraAPIA The Fedora Access API object
-	 * @param objFields a String array which specifies the object fields to get
-	 * in the objectFields object 
+	 * @param objectPID
+	 *            The pid of the object you want to find
+	 * @param fedoraAPIA
+	 *            The Fedora Access API object
+	 * @param objFields
+	 *            a String array which specifies the object fields to get in the
+	 *            objectFields object
 	 * 
 	 * @return the specified fields of each object matching a given criteria.
 	 */
-	public ObjectFields getObjectFields(String objectPID){
+	public ObjectFields getObjectFields(String objectPID)
+	{
 		ObjectFields objectFields = null;
-		
+
 		FieldSearchQuery fieldSearchQuery = new FieldSearchQuery();
-		fieldSearchQuery.setConditions(new Condition[]{new Condition("pid", ComparisonOperator.eq, objectPID)});
-		
-		try {
-			FieldSearchResult fieldSearchResult = this.fedoraAPIA.findObjects(ALL_OBJECT_FIELDS, new NonNegativeInteger("1000"), fieldSearchQuery);
-			if (fieldSearchResult != null){
-				while (fieldSearchResult != null && objectFields == null){
+		fieldSearchQuery.setConditions(new Condition[] { new Condition("pid",
+				ComparisonOperator.eq, objectPID) });
+
+		try
+		{
+			FieldSearchResult fieldSearchResult = this.fedoraAPIA.findObjects(
+					ALL_OBJECT_FIELDS, new NonNegativeInteger("1000"),
+					fieldSearchQuery);
+			if (fieldSearchResult != null)
+			{
+				while (fieldSearchResult != null && objectFields == null)
+				{
 					ObjectFields[] ofs = fieldSearchResult.getResultList();
-					
-					if (ofs != null){
-						if (ofs.length != 0){
+
+					if (ofs != null)
+					{
+						if (ofs.length != 0)
+						{
 							objectFields = ofs[0];
 						}
-						else {
-							ListSession listSession = fieldSearchResult.getListSession();
-							if (listSession != null){
+						else
+						{
+							ListSession listSession = fieldSearchResult
+									.getListSession();
+							if (listSession != null)
+							{
 								String token = listSession.getToken();
-								if (token != null){
-									fieldSearchResult = AutoFinder.resumeFindObjects(this.fedoraAPIA, token);
+								if (token != null)
+								{
+									fieldSearchResult = AutoFinder
+											.resumeFindObjects(this.fedoraAPIA,
+													token);
 								}
 							}
 							else
@@ -125,42 +147,58 @@ public class FedoraUtils {
 				}
 			}
 			else
-				logger.error("The field search result object is NULL", new NullPointerException("The field search result object is NULL"));
-		} 
-		catch (RemoteException e) {
+				logger.error("The field search result object is NULL",
+						new NullPointerException(
+								"The field search result object is NULL"));
+		}
+		catch (RemoteException e)
+		{
 			e.printStackTrace();
 		}
-		
+
 		return objectFields;
 	}
-	
-	
-	public List<ObjectFields> getAllObjectFields(){
+
+	public List<ObjectFields> getAllObjectFields()
+	{
 		List<ObjectFields> objFieldss = new ArrayList<ObjectFields>();
-		
+
 		FieldSearchQuery fieldSearchQuery = new FieldSearchQuery();
-		fieldSearchQuery.setConditions(new Condition[]{new Condition("pid", ComparisonOperator.has, "*")});
-		
-		try {
-			FieldSearchResult fieldSearchResult = this.fedoraAPIA.findObjects(ALL_OBJECT_FIELDS, new NonNegativeInteger("1000"), fieldSearchQuery);
-			if (fieldSearchResult != null) {
-				while (fieldSearchResult != null) {
+		fieldSearchQuery.setConditions(new Condition[] { new Condition("pid",
+				ComparisonOperator.has, "*") });
+
+		try
+		{
+			FieldSearchResult fieldSearchResult = this.fedoraAPIA.findObjects(
+					ALL_OBJECT_FIELDS, new NonNegativeInteger("1000"),
+					fieldSearchQuery);
+			if (fieldSearchResult != null)
+			{
+				while (fieldSearchResult != null)
+				{
 					System.out.println(objFieldss.size());
 					ObjectFields[] ofs = fieldSearchResult.getResultList();
-					if (ofs != null) {
-						if (ofs.length != 0) {
-							for (ObjectFields of : ofs) {
+					if (ofs != null)
+					{
+						if (ofs.length != 0)
+						{
+							for (ObjectFields of : ofs)
+							{
 								if (!objFieldss.contains(of))
 									objFieldss.add(of);
 							}
 						}
 					}
-					
-					ListSession listSession = fieldSearchResult.getListSession();
-					if (listSession != null){
+
+					ListSession listSession = fieldSearchResult
+							.getListSession();
+					if (listSession != null)
+					{
 						String token = listSession.getToken();
-						if (token != null){
-							fieldSearchResult = AutoFinder.resumeFindObjects(this.fedoraAPIA, token);
+						if (token != null)
+						{
+							fieldSearchResult = AutoFinder.resumeFindObjects(
+									this.fedoraAPIA, token);
 						}
 					}
 					else
@@ -168,33 +206,36 @@ public class FedoraUtils {
 				}
 			}
 		}
-		catch (RemoteException e) {
+		catch (RemoteException e)
+		{
 			e.printStackTrace();
 		}
-		
+
 		return objFieldss;
 	}
-	
-	
+
 	/**
 	 * Getter and Setter Methods
 	 */
 
-	public FedoraAPIA getFedoraAPIA() {
+	public FedoraAPIA getFedoraAPIA()
+	{
 		return fedoraAPIA;
 	}
 
-	public void setFedoraAPIA(FedoraAPIA fedoraAPIA) {
+	public void setFedoraAPIA(FedoraAPIA fedoraAPIA)
+	{
 		this.fedoraAPIA = fedoraAPIA;
 	}
 
-	public FedoraConnector getFedoraConnector() {
+	public FedoraConnector getFedoraConnector()
+	{
 		return fedoraConnector;
 	}
 
-	public void setFedoraConnector(FedoraConnector fedoraConnector) {
+	public void setFedoraConnector(FedoraConnector fedoraConnector)
+	{
 		this.fedoraConnector = fedoraConnector;
 	}
-	
-	
+
 }

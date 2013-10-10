@@ -31,6 +31,14 @@ package org.hbz.eco4r.util;
  * @version 1.0
  */
 
+import static org.hbz.eco4r.vocabulary.ConfigVocabulary.AGGREGATES_RELS;
+import static org.hbz.eco4r.vocabulary.ConfigVocabulary.EXCLUDE_DATASTREAMS_BY_ID;
+import static org.hbz.eco4r.vocabulary.ConfigVocabulary.EXCLUDE_DATASTREAMS_BY_URI;
+import static org.hbz.eco4r.vocabulary.ConfigVocabulary.SEARCH_DEPTH;
+import static org.hbz.eco4r.vocabulary.FedoraVocabulary.FEDORA_REL_DISSEMINATES;
+import static org.hbz.eco4r.vocabulary.MiscVocabulary.RDF_XML;
+import static org.hbz.eco4r.vocabulary.MiscVocabulary.UTF_8;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,6 +61,9 @@ import org.dspace.foresite.ORESerialiserFactory;
 import org.dspace.foresite.ResourceMap;
 import org.dspace.foresite.ResourceMapDocument;
 import org.dspace.foresite.Triple;
+import org.fcrepo.server.types.gen.DatastreamDef;
+import org.fcrepo.server.types.gen.MIMETypedStream;
+import org.fcrepo.server.types.gen.ObjectFields;
 import org.hbz.eco4r.connection.FedoraConnector;
 
 import com.hp.hpl.jena.rdf.model.Model;
@@ -63,137 +74,153 @@ import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
-import fedora.server.types.gen.DatastreamDef;
-import fedora.server.types.gen.MIMETypedStream;
-import fedora.server.types.gen.ObjectFields;
-
-import static org.hbz.eco4r.vocabulary.ConfigVocabulary.*;
-import static org.hbz.eco4r.vocabulary.FedoraVocabulary.*;
-import static org.hbz.eco4r.vocabulary.MiscVocabulary.*;
-
 /**
- * <b>Class Name</b>: RelationshipsMetadata</br>
- * <b>Class Definition</b>:
- * <p>Util class for handling Relationships</p>
- *
+ * <b>Class Name</b>: RelationshipsMetadata</br> <b>Class Definition</b>:
+ * <p>
+ * Util class for handling Relationships
+ * </p>
+ * 
  * @author Anouar Boulal, boulal@hbz-nrw.de
- *
+ * 
  */
 
-public class RelationshipUtils {
+public class RelationshipUtils
+{
 
-@SuppressWarnings("unused")
-private static Logger logger = Logger.getLogger(RelationshipUtils.class);
-	
+	@SuppressWarnings("unused")
+	private static Logger logger = Logger.getLogger(RelationshipUtils.class);
+
 	private FedoraConnector fedoraConnector;
 	private Map<String, List<String>> propertiesMap;
 	private FedoraUtils fedoraUtils;
 	private PropertyUtils propertyUtils;
 	private ResourceMap rem;
 
-
-	public RelationshipUtils(FedoraConnector fedoraConnector, FedoraUtils fedoraUtils, 
-			PropertyUtils propertyUtils, MetadataUtils metadataUtils) {
+	public RelationshipUtils(FedoraConnector fedoraConnector,
+			FedoraUtils fedoraUtils, PropertyUtils propertyUtils,
+			MetadataUtils metadataUtils)
+	{
 		this.setFedoraConnector(fedoraConnector);
 		this.setPropertiesMap(propertyUtils.getPropertiesMap());
 		this.setFedoraUtils(fedoraUtils);
 		this.setPropertyUtils(propertyUtils);
 	}
 
-	
-	public void setUpReMRelationships(ResourceMap rem){
-		
+	public void setUpReMRelationships(ResourceMap rem)
+	{
+
 		this.setRem(rem);
-		
-		try {
+
+		try
+		{
 			this.expand(this.rem.getAggregation().getURI());
 			this.addAggregatedResources();
-		} 
-		catch (OREException e) {
+		}
+		catch (OREException e)
+		{
 			e.printStackTrace();
 		}
 	}
-	
-	
-	private void addAggregatedResources() {
-		
+
+	private void addAggregatedResources()
+	{
+
 		List<URI> aggregatesRels = this.getAggregatesRels();
 		Model model = this.initModel();
-		
-		try {
+
+		try
+		{
 			StmtIterator iter = model.listStatements(
-					model.getResource(this.rem.getAggregation().getURI().toString()), 
-					(Property) null, (RDFNode) null);
-			
-			while (iter.hasNext()) {
+					model.getResource(this.rem.getAggregation().getURI()
+							.toString()), (Property) null, (RDFNode) null);
+
+			while (iter.hasNext())
+			{
 				Statement stmt = iter.nextStatement();
 				Property pred = stmt.getPredicate();
 				RDFNode obj = stmt.getObject();
-				
+
 				URI predURI = new URI(pred.getURI());
-				if (aggregatesRels.contains(predURI)){
-					if (!obj.isAnon()) {
-						if (obj.isResource()) {
+				if (aggregatesRels.contains(predURI))
+				{
+					if (!obj.isAnon())
+					{
+						if (obj.isResource())
+						{
 							URI objURI = new URI(obj.asResource().getURI());
-							this.rem.getAggregation().createAggregatedResource(objURI);
+							this.rem.getAggregation().createAggregatedResource(
+									objURI);
 						}
 					}
 				}
 			}
-		} 
-		catch (OREException e) {
+		}
+		catch (OREException e)
+		{
 			e.printStackTrace();
-		} 
-		catch (URISyntaxException e) {
+		}
+		catch (URISyntaxException e)
+		{
 			e.printStackTrace();
 		}
 	}
 
-
-	private List<URI> getAggregatesRels() {
+	private List<URI> getAggregatesRels()
+	{
 		List<String> list = this.propertiesMap.get(AGGREGATES_RELS);
 		List<String> aggRels = this.trimValues(list);
 		List<URI> uris = new ArrayList<URI>();
-		
-		try {
-			for (String aggRel : aggRels) {	
+
+		try
+		{
+			for (String aggRel : aggRels)
+			{
 				URI uri = new URI(aggRel);
 				if (!uris.contains(uri))
 					uris.add(uri);
 			}
-		} 
-		catch (URISyntaxException e) {
+		}
+		catch (URISyntaxException e)
+		{
 			e.printStackTrace();
 		}
-		
+
 		return uris;
 	}
 
-
-	public void expand(URI uri) {
+	public void expand(URI uri)
+	{
 		int searchDepth = this.getSearchDepth();
 		List<String> excludedResourcesByPID = this.getExcludedResourcesByPID();
 		List<URI> excludedRelationships = this.getExcludedRelationships();
-		List<String> excludedDatastreamsByID = this.getExcludedDatastreamsByID();
+		List<String> excludedDatastreamsByID = this
+				.getExcludedDatastreamsByID();
 		List<URI> excludedDatastreamsByURI = this.getExcludedDatastreamsByURI();
-		
-		if (this.objectExists(this.getLast(uri.toString(), "/"))) {
+
+		if (this.objectExists(this.getLast(uri.toString(), "/")))
+		{
 
 			List<URI> next = new ArrayList<URI>();
 			List<URI> passed = new ArrayList<URI>();
 			List<URI> iteration = new ArrayList<URI>();
 
 			iteration.add(uri);
-			
-			for (int i = 0; i < searchDepth; i++) {
-				
-				for (URI iterURI : iteration) {
-					List<URI> nextURIs = this.expandRelsFor(iterURI, 
-							excludedResourcesByPID, excludedRelationships, excludedDatastreamsByID, 
-							excludedDatastreamsByURI, i);
+
+			for (int i = 0; i < searchDepth; i++)
+			{
+
+				for (URI iterURI : iteration)
+				{
+					List<URI> nextURIs = this.expandRelsFor(iterURI,
+							excludedResourcesByPID, excludedRelationships,
+							excludedDatastreamsByID, excludedDatastreamsByURI,
+							i);
 					passed.add(iterURI);
-					for (URI nextURI : nextURIs) {
-						if (!next.contains(nextURI) && !passed.contains(nextURI)) {
+					for (URI nextURI : nextURIs)
+					{
+						if (!next.contains(nextURI)
+								&& !passed.contains(nextURI))
+						{
 							next.add(nextURI);
 						}
 					}
@@ -202,397 +229,481 @@ private static Logger logger = Logger.getLogger(RelationshipUtils.class);
 				iteration.addAll(next);
 				next.clear();
 			}
-		}	
+		}
 	}
-	
-	private Model initModel(){
+
+	private Model initModel()
+	{
 		Model model = null;
-		try {
-			ORESerialiser serialiser = ORESerialiserFactory.getInstance(RDF_XML);
+		try
+		{
+			ORESerialiser serialiser = ORESerialiserFactory
+					.getInstance(RDF_XML);
 			ResourceMapDocument remDoc = serialiser.serialise(this.rem);
 			String remString = remDoc.toString();
-			
+
 			InputStream is = new ByteArrayInputStream(remString.getBytes(UTF_8));
 			model = ModelFactory.createDefaultModel();
 			model.read(is, null);
 		}
-		catch (ORESerialiserException e) {
-			e.printStackTrace();
-		} 
-		catch (UnsupportedEncodingException e) {
+		catch (ORESerialiserException e)
+		{
 			e.printStackTrace();
 		}
-		
+		catch (UnsupportedEncodingException e)
+		{
+			e.printStackTrace();
+		}
+
 		return model;
 	}
 
+	private List<URI> expandRelsFor(URI iterURI,
+			List<String> excludedResourcesByPID,
+			List<URI> excludedRelationships,
+			List<String> ecludedDatastreamsByID,
+			List<URI> excludedDatastreamsByURI, int i)
+	{
 
-	private List<URI> expandRelsFor(URI iterURI, List<String> excludedResourcesByPID,
-			List<URI> excludedRelationships,  List<String> ecludedDatastreamsByID, 
-			List<URI> excludedDatastreamsByURI, int i) {
-		
 		String pid = this.getLast(iterURI.toString(), "/");
-		
+
 		List<URI> nextURIs = new ArrayList<URI>();
-		
-		List<Statement> filteredRelatedURIStmts = this.getFilteredRelatedURIStmts(pid, 
-				excludedResourcesByPID, excludedRelationships, ecludedDatastreamsByID);
-		
-		List<Statement> filteredRelatedLiteralStmts = this.getFilteredRelatedLiteralStmts(pid, 
-				excludedResourcesByPID, excludedRelationships, ecludedDatastreamsByID);
-		
-		List<Triple> filteredRelatedDatastreamsStmts = this.getFilteredRelatedDatastreamsStmts(pid, 
-				excludedResourcesByPID, excludedRelationships, ecludedDatastreamsByID, excludedDatastreamsByURI);
-		
-		try {
+
+		List<Statement> filteredRelatedURIStmts = this
+				.getFilteredRelatedURIStmts(pid, excludedResourcesByPID,
+						excludedRelationships, ecludedDatastreamsByID);
+
+		List<Statement> filteredRelatedLiteralStmts = this
+				.getFilteredRelatedLiteralStmts(pid, excludedResourcesByPID,
+						excludedRelationships, ecludedDatastreamsByID);
+
+		List<Triple> filteredRelatedDatastreamsStmts = this
+				.getFilteredRelatedDatastreamsStmts(pid,
+						excludedResourcesByPID, excludedRelationships,
+						ecludedDatastreamsByID, excludedDatastreamsByURI);
+
+		try
+		{
 			// Next URI Resources
-			for (Statement stmt : filteredRelatedURIStmts) {
-				URI subjURI = this.getDeferenciableURIForObject(stmt.getSubject().getURI());
-				URI predURI = new URI(stmt.getPredicate().getURI());	
-				URI objURI = this.getDeferenciableURIForObject(stmt.getObject().asResource().getURI());
-				
+			for (Statement stmt : filteredRelatedURIStmts)
+			{
+				URI subjURI = this.getDeferenciableURIForObject(stmt
+						.getSubject().getURI());
+				URI predURI = new URI(stmt.getPredicate().getURI());
+				URI objURI = this.getDeferenciableURIForObject(stmt.getObject()
+						.asResource().getURI());
+
 				Triple tr = OREFactory.createTriple(subjURI, predURI, objURI);
 				this.rem.getAggregation().addTriple(tr);
-				
+
 				if (!nextURIs.contains(objURI))
 					nextURIs.add(objURI);
 			}
-			
+
 			// Next Literal Resources
-			for (Statement stmt : filteredRelatedLiteralStmts) {
-				URI subjURI = this.getDeferenciableURIForObject(stmt.getSubject().getURI());
+			for (Statement stmt : filteredRelatedLiteralStmts)
+			{
+				URI subjURI = this.getDeferenciableURIForObject(stmt
+						.getSubject().getURI());
 				URI predURI = new URI(stmt.getPredicate().getURI());
 				String objStr = stmt.getObject().asLiteral().getString();
-				
+
 				Triple tr = OREFactory.createTriple(subjURI, predURI, objStr);
 				this.rem.getAggregation().addTriple(tr);
 			}
-			
+
 			// Next Datastreams
-			for (Triple tr : filteredRelatedDatastreamsStmts) {
+			for (Triple tr : filteredRelatedDatastreamsStmts)
+			{
 				this.rem.getAggregation().addTriple(tr);
 			}
-		} 
-		catch (URISyntaxException e) {
+		}
+		catch (URISyntaxException e)
+		{
 			e.printStackTrace();
-		} 
-		catch (OREException e) {
+		}
+		catch (OREException e)
+		{
 			e.printStackTrace();
 		}
 
 		return nextURIs;
 	}
 
-
 	private List<Triple> getFilteredRelatedDatastreamsStmts(String pid,
 			List<String> excludedResourcesByPID,
 			List<URI> excludedRelationships,
 			List<String> excludedDatastreamsByID,
-			List<URI> excludedDatastreamsByURI) {
+			List<URI> excludedDatastreamsByURI)
+	{
 		List<Triple> filteredTriples = new ArrayList<Triple>();
-		try {
-			URI subjURI = new URI(this.fedoraConnector.getBaseURL() + "/objects/" + pid);
+		try
+		{
+			URI subjURI = new URI(this.fedoraConnector.getBaseURL()
+					+ "/objects/" + pid);
 			URI predURI = new URI(FEDORA_REL_DISSEMINATES);
-			
+
 			List<URI> datastreams = this.getRelatedDatastreams(pid);
-			for (URI ds : datastreams) {
-				if (!excludedDatastreamsByID.contains(this.getLast(ds.toString(), "/"))
+			for (URI ds : datastreams)
+			{
+				if (!excludedDatastreamsByID.contains(this.getLast(
+						ds.toString(), "/"))
 						&& !excludedDatastreamsByURI.contains(ds)
-						&& !excludedRelationships.contains(predURI)) {
+						&& !excludedRelationships.contains(predURI))
+				{
 					Triple tr = OREFactory.createTriple(subjURI, predURI, ds);
-					if (!filteredTriples.contains(tr)) {
+					if (!filteredTriples.contains(tr))
+					{
 						filteredTriples.add(tr);
 					}
 				}
 			}
-		} 
-		catch (URISyntaxException e) {
-			e.printStackTrace();
-		} 
-		catch (OREException e) {
+		}
+		catch (URISyntaxException e)
+		{
 			e.printStackTrace();
 		}
-		
+		catch (OREException e)
+		{
+			e.printStackTrace();
+		}
+
 		return filteredTriples;
 	}
 
-
 	private List<Statement> getFilteredRelatedLiteralStmts(String pid,
 			List<String> excludedResourcesByPID,
-			List<URI> excludedRelationships, List<String> ecludedDatastreamsByID) {
-		
+			List<URI> excludedRelationships, List<String> ecludedDatastreamsByID)
+	{
+
 		List<Statement> filteredStmt = new ArrayList<Statement>();
-		
-		try {
+
+		try
+		{
 			Model model = this.getRELSEXTModel(pid);
 			StmtIterator iter = model.listStatements();
-			while (iter.hasNext()) {
+			while (iter.hasNext())
+			{
 				Statement stmt = iter.nextStatement();
 				Resource subj = stmt.getSubject();
 				Property pred = stmt.getPredicate();
 				RDFNode obj = stmt.getObject();
 
-				if (!obj.isAnon()) {
-					if (obj.isLiteral()) {
+				if (!obj.isAnon())
+				{
+					if (obj.isLiteral())
+					{
 						String subjPID = this.getLast(subj.getURI(), "/");
 						URI predURI = new URI(pred.getURI());
 
 						if (!excludedResourcesByPID.contains(subjPID)
-								&& !excludedRelationships.contains(predURI)) {
+								&& !excludedRelationships.contains(predURI))
+						{
 							if (!filteredStmt.contains(stmt))
 								filteredStmt.add(stmt);
 						}
 					}
 				}
 			}
-		} 
-		catch (URISyntaxException e) {
+		}
+		catch (URISyntaxException e)
+		{
 			e.printStackTrace();
 		}
 
 		return filteredStmt;
 	}
-
 
 	private List<Statement> getFilteredRelatedURIStmts(String pid,
 			List<String> excludedResourcesByPID,
-			List<URI> excludedRelationships, List<String> ecludedDatastreamsByID) {
+			List<URI> excludedRelationships, List<String> ecludedDatastreamsByID)
+	{
 
 		List<Statement> filteredStmt = new ArrayList<Statement>();
-		try {
+		try
+		{
 			Model model = this.getRELSEXTModel(pid);
 			StmtIterator iter = model.listStatements();
-			while (iter.hasNext()) {
+			while (iter.hasNext())
+			{
 				Statement stmt = iter.nextStatement();
 				Resource subj = stmt.getSubject();
 				Property pred = stmt.getPredicate();
 				RDFNode obj = stmt.getObject();
 
-				if (!obj.isAnon()) {
-					if (obj.isResource()) {
+				if (!obj.isAnon())
+				{
+					if (obj.isResource())
+					{
 						String subjPID = this.getLast(subj.getURI(), "/");
 						URI predURI = new URI(pred.getURI());
-						String objPID = this.getLast(obj.asResource().getURI(),	"/");
+						String objPID = this.getLast(obj.asResource().getURI(),
+								"/");
 
 						if (!excludedResourcesByPID.contains(subjPID)
 								&& !excludedResourcesByPID.contains(objPID)
-								&& !excludedRelationships.contains(predURI)) {
+								&& !excludedRelationships.contains(predURI))
+						{
 							if (!filteredStmt.contains(stmt))
 								filteredStmt.add(stmt);
 						}
 					}
 				}
 			}
-		} 
-		catch (URISyntaxException e) {
+		}
+		catch (URISyntaxException e)
+		{
 			e.printStackTrace();
 		}
 
 		return filteredStmt;
 	}
 
-
-	private URI getDeferenciableURIForObject(String uri) {
+	private URI getDeferenciableURIForObject(String uri)
+	{
 		String pid = this.getLast(uri, "/");
-		
+
 		URI newURI = null;
-		try {
-			newURI = new URI(this.fedoraConnector.getBaseURL() + "/objects/" + pid);
-		} 
-		catch (URISyntaxException e) {
+		try
+		{
+			newURI = new URI(this.fedoraConnector.getBaseURL() + "/objects/"
+					+ pid);
+		}
+		catch (URISyntaxException e)
+		{
 			e.printStackTrace();
 		}
-		
+
 		return newURI;
 	}
 
-	public List<URI> getRelatedDatastreams(String pid){
+	public List<URI> getRelatedDatastreams(String pid)
+	{
 		List<URI> datastreamURIs = new ArrayList<URI>();
-		
-		try {
-			if (pid.contains(":") && this.objectExists(pid)){
-				DatastreamDef[] datastreamDefs = this.fedoraConnector.getFedoraClient().getAPIA().listDatastreams(pid, null);
-				if (datastreamDefs != null && datastreamDefs.length != 0){
-					for (DatastreamDef datastreamDef : datastreamDefs){
+
+		try
+		{
+			if (pid.contains(":") && this.objectExists(pid))
+			{
+				DatastreamDef[] datastreamDefs = this.fedoraConnector
+						.getFedoraClient().getAPIA().listDatastreams(pid, null);
+				if (datastreamDefs != null && datastreamDefs.length != 0)
+				{
+					for (DatastreamDef datastreamDef : datastreamDefs)
+					{
 						String dsId = datastreamDef.getID();
-						URI dsURI = new URI(this.fedoraConnector.getBaseURL() + "/objects/" + pid + "/datastreams/" + dsId);
-						if (!datastreamURIs.contains(dsURI)){
+						URI dsURI = new URI(this.fedoraConnector.getBaseURL()
+								+ "/objects/" + pid + "/datastreams/" + dsId);
+						if (!datastreamURIs.contains(dsURI))
+						{
 							datastreamURIs.add(dsURI);
 						}
 					}
 				}
 			}
-		} 
-		catch (RemoteException e) {
-			e.printStackTrace();
-		} 
-		catch (ServiceException e) {
-			e.printStackTrace();
-		} 
-		catch (IOException e) {
-			e.printStackTrace();
-		} 
-		catch (URISyntaxException e) {
+		}
+		catch (RemoteException e)
+		{
 			e.printStackTrace();
 		}
-		
+		catch (ServiceException e)
+		{
+			e.printStackTrace();
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+		catch (URISyntaxException e)
+		{
+			e.printStackTrace();
+		}
+
 		return datastreamURIs;
 	}
 
-	private List<String> getExcludedResourcesByPID(){
+	private List<String> getExcludedResourcesByPID()
+	{
 		List<String> list = this.propertiesMap.get("excludeResourcesByPID");
-		
+
 		return this.trimValues(list);
 	}
-	
-	private List<URI> getExcludedRelationships() {
+
+	private List<URI> getExcludedRelationships()
+	{
 		List<String> list = this.propertiesMap.get("excludeRelationships");
 		List<String> excludedResources = this.trimValues(list);
-		
+
 		List<URI> uris = new ArrayList<URI>();
-		
-		try {
-			for (String res : excludedResources){
+
+		try
+		{
+			for (String res : excludedResources)
+			{
 				URI uri = new URI(res.trim());
-				
+
 				if (!uris.contains(uri))
 					uris.add(uri);
 			}
-		} 
-		catch (URISyntaxException e) {
+		}
+		catch (URISyntaxException e)
+		{
 			e.printStackTrace();
 		}
-		
+
 		return uris;
 	}
-	
-	private List<String> getExcludedDatastreamsByID() {
-		
+
+	private List<String> getExcludedDatastreamsByID()
+	{
+
 		List<String> ids = this.propertiesMap.get(EXCLUDE_DATASTREAMS_BY_ID);
-		
+
 		return this.trimValues(ids);
 	}
-	
-	private List<URI> getExcludedDatastreamsByURI() {
+
+	private List<URI> getExcludedDatastreamsByURI()
+	{
 		List<URI> uris = new ArrayList<URI>();
 		List<String> ids = this.propertiesMap.get(EXCLUDE_DATASTREAMS_BY_URI);
 		List<String> newIds = this.trimValues(ids);
-		try {
-			for (String str : newIds) {
+		try
+		{
+			for (String str : newIds)
+			{
 				URI uri = new URI(str);
 				if (!uris.contains(uri))
 					uris.add(uri);
 			}
-		} 
-		catch (URISyntaxException e) {
+		}
+		catch (URISyntaxException e)
+		{
 			e.printStackTrace();
 		}
-		
+
 		return uris;
 	}
-	
-	private List<String> trimValues(List<String> values) {
+
+	private List<String> trimValues(List<String> values)
+	{
 		List<String> trimedValues = new ArrayList<String>();
-		
-		for (String value : values) {
+
+		for (String value : values)
+		{
 			trimedValues.add(value.trim());
 		}
-		
+
 		return trimedValues;
 	}
 
-	private int getSearchDepth(){
-		Integer searchDepth = Integer.valueOf(this.propertiesMap.get(SEARCH_DEPTH).get(0));
-		
+	private int getSearchDepth()
+	{
+		Integer searchDepth = Integer.valueOf(this.propertiesMap.get(
+				SEARCH_DEPTH).get(0));
+
 		if (searchDepth <= 0 || searchDepth == null)
 			searchDepth = 1;
-		
+
 		return searchDepth;
 	}
-	
-	private Model getRELSEXTModel(String pid) {
+
+	private Model getRELSEXTModel(String pid)
+	{
 		Model model = ModelFactory.createDefaultModel();
-		
+
 		MIMETypedStream mimeTypedStream;
-		try {
-			if (pid.contains(":") && this.objectExists(pid)){
-				mimeTypedStream = this.fedoraConnector.getFedoraClient().getAPIA().getDatastreamDissemination(pid, "RELS-EXT", null);
-				InputStream is = new ByteArrayInputStream(mimeTypedStream.getStream());
+		try
+		{
+			if (pid.contains(":") && this.objectExists(pid))
+			{
+				mimeTypedStream = this.fedoraConnector.getFedoraClient()
+						.getAPIA()
+						.getDatastreamDissemination(pid, "RELS-EXT", null);
+				InputStream is = new ByteArrayInputStream(
+						mimeTypedStream.getStream());
 				model.read(is, null);
 			}
-		} 
-		catch (RemoteException e) {
-			e.printStackTrace();
-		} 
-		catch (ServiceException e) {
-			e.printStackTrace();
-		} 
-		catch (IOException e) {
+		}
+		catch (RemoteException e)
+		{
 			e.printStackTrace();
 		}
-			
-		
+		catch (ServiceException e)
+		{
+			e.printStackTrace();
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+
 		return model;
 	}
-	
-	private boolean objectExists(String pid) {
+
+	private boolean objectExists(String pid)
+	{
 		boolean objExists = false;
-				
+
 		ObjectFields objFields = this.fedoraUtils.getObjectFields(pid);
-		
+
 		if (objFields != null)
 			objExists = true;
-		
-		
+
 		return objExists;
 	}
 
-
-	public FedoraConnector getFedoraConnector() {
+	public FedoraConnector getFedoraConnector()
+	{
 		return fedoraConnector;
 	}
 
-	public void setFedoraConnector(FedoraConnector fedoraConnector) {
+	public void setFedoraConnector(FedoraConnector fedoraConnector)
+	{
 		this.fedoraConnector = fedoraConnector;
 	}
 
-	public Map<String, List<String>> getPropertiesMap() {
+	public Map<String, List<String>> getPropertiesMap()
+	{
 		return propertiesMap;
 	}
 
-	public void setPropertiesMap(Map<String, List<String>> propertiesMap) {
+	public void setPropertiesMap(Map<String, List<String>> propertiesMap)
+	{
 		this.propertiesMap = propertiesMap;
 	}
 
-	public FedoraUtils getFedoraUtils() {
+	public FedoraUtils getFedoraUtils()
+	{
 		return fedoraUtils;
 	}
 
-	public void setFedoraUtils(FedoraUtils fedoraUtils) {
+	public void setFedoraUtils(FedoraUtils fedoraUtils)
+	{
 		this.fedoraUtils = fedoraUtils;
 	}
 
-
-	public PropertyUtils getPropertyUtils() {
+	public PropertyUtils getPropertyUtils()
+	{
 		return propertyUtils;
 	}
 
-
-	public void setPropertyUtils(PropertyUtils propertyUtils) {
+	public void setPropertyUtils(PropertyUtils propertyUtils)
+	{
 		this.propertyUtils = propertyUtils;
 	}
-	
-	public ResourceMap getRem() {
+
+	public ResourceMap getRem()
+	{
 		return rem;
 	}
 
-
-	public void setRem(ResourceMap rem) {
+	public void setRem(ResourceMap rem)
+	{
 		this.rem = rem;
 	}
 
-
-	private String getLast(String baseString, String separator){
+	private String getLast(String baseString, String separator)
+	{
 		String[] parts = baseString.split(separator);
 		String last = parts[parts.length - 1];
 		return last;

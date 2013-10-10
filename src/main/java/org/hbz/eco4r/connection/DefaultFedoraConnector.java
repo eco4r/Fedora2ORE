@@ -35,7 +35,6 @@ package org.hbz.eco4r.connection;
 import static org.hbz.eco4r.vocabulary.FedoraVocabulary.FEDORA_HOST;
 import static org.hbz.eco4r.vocabulary.FedoraVocabulary.FEDORA_PASSWORD;
 import static org.hbz.eco4r.vocabulary.FedoraVocabulary.FEDORA_PORT;
-import static org.hbz.eco4r.vocabulary.FedoraVocabulary.FEDORA_PROTOCOL;
 import static org.hbz.eco4r.vocabulary.FedoraVocabulary.FEDORA_SERVICE_SUFFIX;
 import static org.hbz.eco4r.vocabulary.FedoraVocabulary.FEDORA_USER;
 
@@ -43,83 +42,89 @@ import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.UsernamePasswordCredentials;
+import org.apache.commons.httpclient.auth.AuthScope;
 import org.apache.log4j.Logger;
+import org.fcrepo.client.FedoraClient;
 import org.hbz.eco4r.config.Configuration;
 import org.hbz.eco4r.config.Property;
 import org.junit.Assert;
-
-import fedora.client.FedoraClient;
+import org.openrdf.http.client.HTTPClient;
 
 /**
- * <b>Class Name</b>: FedoraConnector</br>
- * <b>Class Definition</b>:
- * <p>A FedoraConnector object, establishes a Connection with Fedora and returns a 
- * FedoraClient object that is responsible for the communication through the Fedora APIs</p>
- *
- * @author Anouar Boulal, boulal@hbz-nrw.de
- *
+ * 
+ * <b>Class Name</b>: DefaultFedoraConnector</br> <b>Class Definition</b>:
+ * <p>
+ * Is an default implementation of the {@link Connector} interface. An instance
+ * of this class is a container that holds two Fedora-Connection Objects:
+ * {@link FedoraClient} and {@link HTTPClient}.
+ * </p>
+ * 
+ * @author Anouar Boulal
+ * 
  */
-public class FedoraConnector implements Connector{
+public class DefaultFedoraConnector implements Connector
+{
 
-private static Logger logger = Logger.getLogger(Connector.class);
-	
-	private String protocol;
+	private static Logger logger = Logger.getLogger(Connector.class);
+
 	private String user;
 	private String passwd;
 	private String host;
 	private String port;
 	private String suffix;
 	private String baseURL;
-	
+
 	private Configuration configuration;
-	
+
 	private FedoraClient fedoraClient;
-	
+	private HttpClient httpClient;
+
 	private List<Object> connectionObjects;
 	private Connection connection;
-	
-	public FedoraConnector(String configFile) {
+
+	public DefaultFedoraConnector(String configFile)
+	{
 		this.configuration = new Configuration(configFile);
 		this.configure(this.configuration);
 		this.connect();
 	}
-	
-	public FedoraConnector(Configuration configuration) {
-		this.configuration = configuration;
-		this.configure(this.configuration);
+
+	public DefaultFedoraConnector(Configuration configuration)
+	{
+		this.configure(configuration);
 		this.connect();
 	}
-	
-	
-	public void configure(Configuration configuration) {
+
+	@Override
+	public void configure(Configuration configuration)
+	{
 		this.configuration = configuration;
 		List<Property> properties = configuration.getProperties();
-		
-		for (Property property : properties){
-			
-			if (property.getKey().equals(FEDORA_PROTOCOL))
-				this.protocol = property.getValues().get(0);
-			
+
+		for (Property property : properties)
+		{
+
 			if (property.getKey().equals(FEDORA_USER))
 				this.user = property.getValues().get(0);
-			
+
 			if (property.getKey().equals(FEDORA_PASSWORD))
 				this.passwd = property.getValues().get(0);
-			
+
 			if (property.getKey().equals(FEDORA_HOST))
 				this.host = property.getValues().get(0);
-			
+
 			if (property.getKey().equals(FEDORA_PORT))
 				this.port = property.getValues().get(0);
-			
+
 			if (property.getKey().equals(FEDORA_SERVICE_SUFFIX))
 				this.suffix = property.getValues().get(0);
-			
+
 		}
-		
-		this.baseURL = this.getBaseURL(this.protocol, this.host, this.port, this.suffix);
-		
-		Assert.assertNotNull("The user is null or is empty", this.protocol);
+
+		this.baseURL = this.getBaseURL(this.host, this.port, this.suffix);
+
 		Assert.assertNotNull("The user is null or is empty", this.user);
 		Assert.assertNotNull("The password is null or is empty", this.passwd);
 		Assert.assertNotNull("The host is null or is empty", this.host);
@@ -128,122 +133,159 @@ private static Logger logger = Logger.getLogger(Connector.class);
 		Assert.assertNotNull("The base URL is null or is empty", this.baseURL);
 	}
 
-	
-	public Connection connect() {
-		try {
-			this.fedoraClient = new FedoraClient(this.baseURL, this.user, this.passwd);
+	@Override
+	public Connection connect()
+	{
+		try
+		{
+			this.fedoraClient = new FedoraClient(this.baseURL, this.user,
+					this.passwd);
+			this.httpClient = new HttpClient();
+			this.httpClient.getState().setCredentials(
+					new AuthScope(this.getHost(), Integer.parseInt(this
+							.getPort())),
+					new UsernamePasswordCredentials(this.getUser(), this
+							.getPasswd()));
 			this.connectionObjects = new ArrayList<Object>();
 			this.connectionObjects.add(fedoraClient);
+			this.connectionObjects.add(httpClient);
 			this.connection = new Connection(connectionObjects);
-		} 
-		catch (MalformedURLException e) {
+		}
+		catch (MalformedURLException e)
+		{
 			e.printStackTrace();
 		}
-		
+
 		return this.connection;
 	}
-	
-	private String getBaseURL(String protocol, String host, String port, String fedoraServicePrefix){
-		String baseURL = protocol + "://" + host + ":" + port + "/" + fedoraServicePrefix;
+
+	private String getBaseURL(String host, String port,
+			String fedoraServicePrefix)
+	{
+		String baseURL = "http://" + host + ":" + port + "/"
+				+ fedoraServicePrefix;
 		return baseURL;
 	}
-	
+
 	/**
 	 * Java Beans getter and setter methods
 	 */
-	
-	public String getProtocol() {
-		return protocol;
-	}
 
-	public void setProtocol(String protocol) {
-		this.protocol = protocol;
-	}
-	
-	public String getUser() {
+	public String getUser()
+	{
 		return user;
 	}
 
-	public void setUser(String user) {
+	public void setUser(String user)
+	{
 		this.user = user;
 	}
 
-	public String getPasswd() {
+	public String getPasswd()
+	{
 		return passwd;
 	}
 
-	public void setPasswd(String passwd) {
+	public void setPasswd(String passwd)
+	{
 		this.passwd = passwd;
 	}
 
-	public String getHost() {
+	public String getHost()
+	{
 		return host;
 	}
 
-	public void setHost(String host) {
+	public void setHost(String host)
+	{
 		this.host = host;
 	}
 
-	public String getPort() {
+	public String getPort()
+	{
 		return port;
 	}
 
-	public void setPort(String port) {
+	public void setPort(String port)
+	{
 		this.port = port;
 	}
 
-	public String getSuffix() {
+	public String getSuffix()
+	{
 		return suffix;
 	}
 
-	public void setSuffix(String suffix) {
+	public void setSuffix(String suffix)
+	{
 		this.suffix = suffix;
 	}
 
-	public String getBaseURL() {
+	public String getBaseURL()
+	{
 		return baseURL;
 	}
 
-	public void setBaseURL(String baseURL) {
+	public void setBaseURL(String baseURL)
+	{
 		this.baseURL = baseURL;
 	}
 
-	public FedoraClient getFedoraClient() {
+	public FedoraClient getFedoraClient()
+	{
 		return fedoraClient;
 	}
 
-	public void setFedoraClient(FedoraClient fedoraClient) {
+	public void setFedoraClient(FedoraClient fedoraClient)
+	{
 		this.fedoraClient = fedoraClient;
 	}
-	
-	public List<Object> getConnectionObjects() {
+
+	public HttpClient getHttpClient()
+	{
+		return httpClient;
+	}
+
+	public void setHttpClient(HttpClient httpClient)
+	{
+		this.httpClient = httpClient;
+	}
+
+	public List<Object> getConnectionObjects()
+	{
 		return connectionObjects;
 	}
 
-	public void setConnectionObjects(List<Object> connectionObjects) {
+	public void setConnectionObjects(List<Object> connectionObjects)
+	{
 		this.connectionObjects = connectionObjects;
 	}
 
-	public Connection getConnection() {
+	public Connection getConnection()
+	{
 		return connection;
 	}
 
-	public void setConnection(Connection connection) {
+	public void setConnection(Connection connection)
+	{
 		this.connection = connection;
 	}
-	
-	public Configuration getConfiguration() {
+
+	public Configuration getConfiguration()
+	{
 		return configuration;
 	}
 
-	public void setConfiguration(Configuration configuration) {
+	public void setConfiguration(Configuration configuration)
+	{
 		this.configuration = configuration;
 	}
 
 	@Override
-	public String toString() {
+	public String toString()
+	{
 		String str = "";
-		
+
 		logger.info("Connection Properties:");
 		logger.info("User: " + this.user);
 		logger.info("passwd: " + this.passwd);
@@ -251,13 +293,14 @@ private static Logger logger = Logger.getLogger(Connector.class);
 		logger.info("port: " + this.port);
 		logger.info("suffix: " + this.suffix);
 		logger.info("baseURL: " + this.baseURL);
-		
-		if (this.getConnectionObjects().size() != 0){
+
+		if (this.getConnectionObjects().size() != 0)
+		{
 			logger.info("The following connector objects was loaded:");
 			for (Object object : this.getConnectionObjects())
 				logger.info(object.getClass());
 		}
-		
+
 		return str;
 	}
 }
